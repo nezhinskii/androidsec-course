@@ -82,15 +82,7 @@ fun SignInScreen(
             signIn = viewModel::signIn,
             signInWithGoogle = {
                 coroutineScope.launch {
-                    val request = createGoogleSignInRequest(context)
-                    val credentialManager = CredentialManager.create(context)
-                    val result = credentialManager.getCredential(context, request)
-                    if (result.credential.type == GoogleIdTokenCredential.TYPE_GOOGLE_ID_TOKEN_CREDENTIAL) {
-                        val googleIdTokenCredential = GoogleIdTokenCredential.createFrom(result.credential.data)
-                        viewModel.signInWithGoogle(googleIdTokenCredential.idToken, showErrorSnackbar)
-                    } else {
-                        showErrorSnackbar(ErrorMessage.StringError("Invalid credential type"))
-                    }
+                    viewModel.signInWithGoogle(context, showErrorSnackbar)
                 }
             },
             showErrorSnackbar = showErrorSnackbar

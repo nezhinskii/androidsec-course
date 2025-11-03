@@ -17,6 +17,10 @@
 package com.example.inventory.ui.item
 
 import android.content.Intent
+import android.net.Uri
+import android.widget.Toast
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.annotation.StringRes
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
@@ -58,7 +62,9 @@ import androidx.compose.ui.tooling.preview.Preview
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.example.inventory.InventoryTopAppBar
 import com.example.inventory.R
-import com.example.inventory.data.Item
+import com.example.inventory.data.inventory.Item
+import com.example.inventory.data.inventory.Source
+import com.example.inventory.data.settings.AppSettings
 import com.example.inventory.ui.AppViewModelProvider
 import com.example.inventory.ui.navigation.NavigationDestination
 import com.example.inventory.ui.theme.InventoryTheme
@@ -78,8 +84,21 @@ fun ItemDetailsScreen(
     modifier: Modifier = Modifier,
     viewModel: ItemDetailsViewModel = viewModel(factory = AppViewModelProvider.Factory)
 ) {
-    val uiState = viewModel.uiState.collectAsState()
+    val itemDetailsState = viewModel.itemDetailsState.collectAsState()
+    val settingsState = viewModel.settingsState.collectAsState()
+
     val context = LocalContext.current
+
+    val createDocumentLauncher = rememberLauncherForActivityResult(
+        ActivityResultContracts.CreateDocument("application/octet-stream")
+    ) { uri: Uri? ->
+        uri?.let {
+            viewModel.exportToFile(it) { success, message ->
+                Toast.makeText(context, if (success) message else "Error: $message", Toast.LENGTH_SHORT).show()
+            }
+        }
+    }
+
     Scaffold(
         topBar = {
             InventoryTopAppBar(
@@ -89,7 +108,7 @@ fun ItemDetailsScreen(
             )
         }, floatingActionButton = {
             FloatingActionButton(
-                onClick = { navigateToEditItem(uiState.value.itemDetails.id) },
+                onClick = { navigateToEditItem(itemDetailsState.value.itemDetails.id) },
                 shape = MaterialTheme.shapes.medium,
                 modifier = Modifier.padding(dimensionResource(id = R.dimen.padding_large))
 
@@ -102,7 +121,8 @@ fun ItemDetailsScreen(
         }, modifier = modifier
     ) { innerPadding ->
         ItemDetailsBody(
-            itemDetailsUiState = uiState.value,
+            itemDetailsUiState = itemDetailsState.value,
+            settings = settingsState.value,
             onSellItem = { viewModel.reduceQuantityByOne() },
             onDelete = {
                 viewModel.deleteItem()
@@ -115,6 +135,11 @@ fun ItemDetailsScreen(
                     type = "text/plain"
                 }
                 context.startActivity(Intent.createChooser(shareIntent, "Share Item Details"))
+            },
+            onExport = {
+                val item = itemDetailsState.value.itemDetails.toItem()
+                val fileName = "item_${item.name}_${item.id}.enc".replace(" ", "_")
+                createDocumentLauncher.launch(fileName)
             },
             modifier = Modifier
                 .padding(
@@ -130,9 +155,11 @@ fun ItemDetailsScreen(
 @Composable
 private fun ItemDetailsBody(
     itemDetailsUiState: ItemDetailsUiState,
+    settings: AppSettings,
     onSellItem: () -> Unit,
     onDelete: () -> Unit,
     onShare: () -> Unit,
+    onExport: () -> Unit,
     modifier: Modifier = Modifier
 ) {
     Column(
@@ -144,7 +171,10 @@ private fun ItemDetailsBody(
         ItemDetails(
             item = itemDetailsUiState.itemDetails.toItem(),
             modifier = Modifier.fillMaxWidth(),
-            onShare = onShare
+            hideSensitive = settings.hideSensitiveData,
+            onShare = onShare,
+            onExport = onExport,
+            disableSharing = settings.disableSharing,
         )
         Button(
             onClick = onSellItem,
@@ -177,7 +207,10 @@ private fun ItemDetailsBody(
 @Composable
 fun ItemDetails(
     item: Item,
+    hideSensitive: Boolean,
+    disableSharing: Boolean,
     onShare: () -> Unit,
+    onExport: () -> Unit,
     modifier: Modifier = Modifier
 ) {
     Card(
@@ -216,36 +249,75 @@ fun ItemDetails(
                     horizontal = dimensionResource(id = R.dimen.padding_medium)
                 )
             )
-            ItemDetailsRow(
-                labelResID = R.string.supplier_name,
-                itemDetail = item.supplierName,
-                modifier = Modifier.padding(
-                    horizontal = dimensionResource(id = R.dimen.padding_medium)
+            if (hideSensitive){
+                SensitiveDataPlaceholder(R.string.supplier_name)
+                SensitiveDataPlaceholder(R.string.supplier_email)
+                SensitiveDataPlaceholder(R.string.supplier_phone)
+            } else {
+                ItemDetailsRow(
+                    labelResID = R.string.supplier_name,
+                    itemDetail = item.supplierName,
+                    modifier = Modifier.padding(
+                        horizontal = dimensionResource(id = R.dimen.padding_medium)
+                    )
                 )
-            )
-            ItemDetailsRow(
-                labelResID = R.string.supplier_email,
-                itemDetail = item.supplierEmail,
-                modifier = Modifier.padding(
-                    horizontal = dimensionResource(id = R.dimen.padding_medium)
+                ItemDetailsRow(
+                    labelResID = R.string.supplier_email,
+                    itemDetail = item.supplierEmail,
+                    modifier = Modifier.padding(
+                        horizontal = dimensionResource(id = R.dimen.padding_medium)
+                    )
                 )
-            )
-            ItemDetailsRow(
-                labelResID = R.string.supplier_phone,
-                itemDetail = item.supplierPhone,
-                modifier = Modifier.padding(
-                    horizontal = dimensionResource(id = R.dimen.padding_medium)
+                ItemDetailsRow(
+                    labelResID = R.string.supplier_phone,
+                    itemDetail = item.supplierPhone,
+                    modifier = Modifier.padding(
+                        horizontal = dimensionResource(id = R.dimen.padding_medium)
+                    )
                 )
+            }
+            ItemDetailsRow(
+                labelResID = R.string.data_source,
+                itemDetail = when (item.source) {
+                    Source.MANUAL -> stringResource(R.string.source_manual)
+                    Source.FILE -> stringResource(R.string.source_file)
+                },
+                modifier = Modifier.padding(horizontal = dimensionResource(id = R.dimen.padding_medium))
             )
             Button(
                 onClick = onShare,
                 modifier = Modifier.fillMaxWidth(),
+                enabled = !disableSharing,
                 shape = MaterialTheme.shapes.small,
             ) {
-                Text(stringResource(R.string.share_action))
+                Text(
+                    text = if (disableSharing) {
+                        stringResource(R.string.share_action_disabled)
+                    } else {
+                        stringResource(R.string.share_action)
+                    }
+                )
+            }
+            Button(
+                onClick = onExport,
+                modifier = Modifier.fillMaxWidth(),
+                shape = MaterialTheme.shapes.small
+            ) {
+                Text(stringResource(R.string.export_action))
             }
         }
     }
+}
+
+@Composable
+private fun SensitiveDataPlaceholder(@StringRes labelResID: Int) {
+    ItemDetailsRow(
+        labelResID,
+        "••••••••",
+        modifier = Modifier.padding(
+            horizontal = dimensionResource(id = R.dimen.padding_medium)
+        )
+    )
 }
 
 @Composable
@@ -290,9 +362,11 @@ fun ItemDetailsScreenPreview() {
                 outOfStock = true,
                 itemDetails = ItemDetails(1, "Pen", "$100", "10")
             ),
+            settings = AppSettings(),
             onSellItem = {},
             onDelete = {},
-            onShare = {}
+            onShare = {},
+            onExport = {}
         )
     }
 }

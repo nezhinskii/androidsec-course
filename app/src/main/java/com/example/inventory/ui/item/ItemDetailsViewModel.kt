@@ -16,10 +16,14 @@
 
 package com.example.inventory.ui.item
 
+import android.net.Uri
+import android.util.Log
 import androidx.lifecycle.SavedStateHandle
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
-import com.example.inventory.data.ItemsRepository
+import com.example.inventory.data.inventory.ItemsRepository
+import com.example.inventory.data.settings.AppSettings
+import com.example.inventory.data.settings.SettingsRepository
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.filterNotNull
@@ -32,12 +36,13 @@ import kotlinx.coroutines.launch
  */
 class ItemDetailsViewModel(
     savedStateHandle: SavedStateHandle,
-    private val itemsRepository: ItemsRepository
+    private val itemsRepository: ItemsRepository,
+    private val settingsRepository: SettingsRepository
 ) : ViewModel() {
 
     private val itemId: Int = checkNotNull(savedStateHandle[ItemDetailsDestination.itemIdArg])
 
-    val uiState: StateFlow<ItemDetailsUiState> =
+    val itemDetailsState: StateFlow<ItemDetailsUiState> =
         itemsRepository.getItemStream(itemId)
             .filterNotNull()
             .map {
@@ -48,13 +53,15 @@ class ItemDetailsViewModel(
                 initialValue = ItemDetailsUiState()
             )
 
+    val settingsState: StateFlow<AppSettings> = settingsRepository.settingsFlow
+
     companion object {
         private const val TIMEOUT_MILLIS = 5_000L
     }
 
     fun reduceQuantityByOne() {
         viewModelScope.launch {
-            val currentItem = uiState.value.itemDetails.toItem()
+            val currentItem = itemDetailsState.value.itemDetails.toItem()
             if (currentItem.quantity > 0) {
                 itemsRepository.updateItem(currentItem.copy(quantity = currentItem.quantity - 1))
             }
@@ -63,12 +70,12 @@ class ItemDetailsViewModel(
 
     fun deleteItem() {
         viewModelScope.launch {
-            itemsRepository.deleteItem(uiState.value.itemDetails.toItem())
+            itemsRepository.deleteItem(itemDetailsState.value.itemDetails.toItem())
         }
     }
 
     fun getShareableText(): String {
-        val item = uiState.value.itemDetails.toItem()
+        val item = itemDetailsState.value.itemDetails.toItem()
         return """
         Item Details:
             ID: ${item.id}
@@ -79,6 +86,19 @@ class ItemDetailsViewModel(
             Supplier Email: ${item.supplierEmail}
             Supplier Phone: ${item.supplierPhone}
         """.trimIndent()
+    }
+
+    fun exportToFile(uri: Uri, onResult: (Boolean, String?) -> Unit) {
+        viewModelScope.launch {
+            try {
+                val itemId = itemDetailsState.value.itemDetails.id
+                itemsRepository.exportItem(itemId, uri)
+                onResult(true, "File saved")
+            } catch (e: Exception) {
+                Log.e("ERROR",e.message.toString());
+                onResult(false, e.message ?: "Save error")
+            }
+        }
     }
 }
 

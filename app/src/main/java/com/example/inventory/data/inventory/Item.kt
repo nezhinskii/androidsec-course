@@ -14,11 +14,16 @@
  * limitations under the License.
  */
 
-package com.example.inventory.data
+package com.example.inventory.data.inventory
 
 import androidx.room.Entity
 import androidx.room.PrimaryKey
+import kotlinx.serialization.Serializable
 
+enum class Source {
+    MANUAL,
+    FILE
+}
 
 /**
  * Entity data class represents a single row in the database.
@@ -27,6 +32,17 @@ import androidx.room.PrimaryKey
 data class Item(
     @PrimaryKey(autoGenerate = true)
     val id: Int = 0,
+    val name: String,
+    val price: Double,
+    val quantity: Int,
+    val supplierName: String = "",
+    val supplierEmail: String = "",
+    val supplierPhone: String = "",
+    val source: Source = Source.MANUAL
+)
+
+@Serializable
+data class ItemJson(
     val name: String,
     val price: Double,
     val quantity: Int,

@@ -17,22 +17,56 @@
 package com.example.inventory.data
 
 import android.content.Context
+import com.example.inventory.data.files.EncryptedFilesManager
+import com.example.inventory.data.files.FileImportExportManager
+import com.example.inventory.data.inventory.InventoryDatabase
+import com.example.inventory.data.inventory.ItemsRepository
+import com.example.inventory.data.inventory.OfflineItemsRepository
+import com.example.inventory.data.settings.EncryptedPrefsManager
+import com.example.inventory.data.settings.SettingsRepository
+import com.example.inventory.data.settings.SettingsRepositoryImpl
 
 /**
  * App container for Dependency injection.
  */
 interface AppContainer {
     val itemsRepository: ItemsRepository
+    val encryptedPrefs: EncryptedPrefsManager
+    val settingsRepository: SettingsRepository
+    val encryptedFiles: EncryptedFilesManager
+    val fileImportExportManager: FileImportExportManager
 }
 
 /**
- * [AppContainer] implementation that provides instance of [OfflineItemsRepository]
+ * [AppContainer] implementation that provides instance of [com.example.inventory.data.inventory.OfflineItemsRepository]
  */
 class AppDataContainer(private val context: Context) : AppContainer {
     /**
      * Implementation for [ItemsRepository]
      */
     override val itemsRepository: ItemsRepository by lazy {
-        OfflineItemsRepository(InventoryDatabase.getDatabase(context).itemDao())
+        OfflineItemsRepository(
+            InventoryDatabase.getDatabase(context).itemDao(),
+            fileImportExportManager
+        )
+    }
+
+    private val _encryptedPrefs = EncryptedPrefsManager(context)
+    override val encryptedPrefs: EncryptedPrefsManager get() = _encryptedPrefs
+
+
+    override val settingsRepository: SettingsRepository by lazy {
+        SettingsRepositoryImpl(encryptedPrefs)
+    }
+
+    override val encryptedFiles: EncryptedFilesManager by lazy {
+        EncryptedFilesManager(context)
+    }
+
+    override val fileImportExportManager: FileImportExportManager by lazy {
+        FileImportExportManager(
+            encryptedFiles = encryptedFiles,
+            contentResolver = context.contentResolver
+        )
     }
 }

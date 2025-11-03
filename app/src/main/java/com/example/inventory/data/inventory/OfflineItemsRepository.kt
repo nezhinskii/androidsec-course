@@ -14,11 +14,17 @@
  * limitations under the License.
  */
 
-package com.example.inventory.data
+package com.example.inventory.data.inventory
 
+import android.net.Uri
+import com.example.inventory.data.files.FileImportExportManager
 import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.first
 
-class OfflineItemsRepository(private val itemDao: ItemDao) : ItemsRepository {
+class OfflineItemsRepository(
+    private val itemDao: ItemDao,
+    private val fileImportExportManager: FileImportExportManager
+) : ItemsRepository {
     override fun getAllItemsStream(): Flow<List<Item>> = itemDao.getAllItems()
 
     override fun getItemStream(id: Int): Flow<Item?> = itemDao.getItem(id)
@@ -28,4 +34,15 @@ class OfflineItemsRepository(private val itemDao: ItemDao) : ItemsRepository {
     override suspend fun deleteItem(item: Item) = itemDao.delete(item)
 
     override suspend fun updateItem(item: Item) = itemDao.update(item)
+
+    override suspend fun exportItem(itemId: Int, uri: Uri) {
+        val item = itemDao.getItem(itemId).first()
+        fileImportExportManager.exportItem(item, uri)
+    }
+
+    override suspend fun importFromFile(uri: Uri): Item {
+        val importedItem = fileImportExportManager.importItem(uri)
+        insertItem(importedItem)
+        return importedItem
+    }
 }

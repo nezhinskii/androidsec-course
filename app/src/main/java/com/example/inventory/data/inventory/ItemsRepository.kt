@@ -14,8 +14,9 @@
  * limitations under the License.
  */
 
-package com.example.inventory.data
+package com.example.inventory.data.inventory
 
+import android.net.Uri
 import kotlinx.coroutines.flow.Flow
 
 /**
@@ -46,4 +47,7 @@ interface ItemsRepository {
      * Update item in the data source
      */
     suspend fun updateItem(item: Item)
+
+    suspend fun exportItem(itemId: Int, uri: Uri)
+    suspend fun importFromFile(uri: Uri): Item
 }

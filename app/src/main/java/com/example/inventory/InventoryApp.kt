@@ -18,8 +18,11 @@
 
 package com.example.inventory
 
+import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.Icons.Filled
 import androidx.compose.material.icons.filled.ArrowBack
+import androidx.compose.material.icons.filled.Settings
+import androidx.compose.material.icons.filled.UploadFile
 import androidx.compose.material3.CenterAlignedTopAppBar
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
@@ -51,7 +54,11 @@ fun InventoryTopAppBar(
     canNavigateBack: Boolean,
     modifier: Modifier = Modifier,
     scrollBehavior: TopAppBarScrollBehavior? = null,
-    navigateUp: () -> Unit = {}
+    navigateUp: () -> Unit = {},
+    onSettingsClick: () -> Unit = {},
+    settingsButton: Boolean = false,
+    importButton: Boolean = false,
+    onImportClick: () -> Unit = {}
 ) {
     CenterAlignedTopAppBar(
         title = { Text(title) },
@@ -63,6 +70,23 @@ fun InventoryTopAppBar(
                     Icon(
                         imageVector = Filled.ArrowBack,
                         contentDescription = stringResource(string.back_button)
+                    )
+                }
+            }
+        },
+        actions = {
+            if (settingsButton)
+            IconButton(onClick = onSettingsClick) {
+                Icon(
+                    imageVector = Icons.Default.Settings,
+                    contentDescription = stringResource(R.string.settings_title)
+                )
+            }
+            if (importButton) {
+                IconButton(onClick = onImportClick) {
+                    Icon(
+                        imageVector = Icons.Default.UploadFile,
+                        contentDescription = stringResource(R.string.import_from_file)
                     )
                 }
             }

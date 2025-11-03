@@ -1,4 +1,4 @@
-package com.example.inventory.data
+package com.example.inventory.data.inventory
 
 import androidx.room.Dao
 import androidx.room.Delete
@@ -22,6 +22,6 @@ interface ItemDao {
     @Query("SELECT * from items WHERE id = :id")
     fun getItem(id: Int): Flow<Item>
 
-    @Query("SELECT * from items ORDER BY name ASC")
+    @Query("SELECT * from items ORDER BY id ASC")
     fun getAllItems(): Flow<List<Item>>
 }

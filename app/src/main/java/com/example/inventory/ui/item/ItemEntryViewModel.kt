@@ -16,26 +16,47 @@
 
 package com.example.inventory.ui.item
 
+import android.net.Uri
+import android.util.Log
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
-import com.example.inventory.data.Item
-import com.example.inventory.data.ItemsRepository
+import com.example.inventory.data.inventory.Item
+import com.example.inventory.data.inventory.ItemsRepository
+import com.example.inventory.data.inventory.Source
+import com.example.inventory.data.settings.SettingsRepository
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
 import java.text.NumberFormat
 
 /**
  * ViewModel to validate and insert items in the Room database.
  */
-class ItemEntryViewModel(private val itemsRepository: ItemsRepository) : ViewModel() {
+class ItemEntryViewModel(
+    private val itemsRepository: ItemsRepository,
+    private val settingsRepository: SettingsRepository
+) : ViewModel() {
 
     /**
      * Holds current item ui state
      */
     var itemUiState by mutableStateOf(ItemUiState())
         private set
+
+    init {
+        viewModelScope.launch {
+            val settings = settingsRepository.settingsFlow.first()
+
+            if (settings.useDefaultQuantity) {
+                val defaultQuantity = settings.defaultQuantity.coerceAtLeast(0).toString()
+                updateUiState(
+                    itemUiState.itemDetails.copy(quantity = defaultQuantity)
+                )
+            }
+        }
+    }
 
     /**
      * Updates the [itemUiState] with the value provided in the argument. This method also triggers
@@ -57,6 +78,18 @@ class ItemEntryViewModel(private val itemsRepository: ItemsRepository) : ViewMod
             return false
         }
     }
+
+    fun importFromFile(uri: Uri, onComplete: () -> Unit, onError: (String) -> Unit) {
+        viewModelScope.launch {
+            try {
+                val item = itemsRepository.importFromFile(uri)
+                onComplete()
+            } catch (e: Exception) {
+                Log.e("ERROR", e.message.toString())
+                onError(e.message ?: "Import error")
+            }
+        }
+    }
 }
 
 /**
@@ -74,7 +107,8 @@ data class ItemDetails(
     val quantity: String = "",
     val supplierName: String = "",
     val supplierEmail: String = "",
-    val supplierPhone: String = ""
+    val supplierPhone: String = "",
+    val source: Source = Source.MANUAL
 )
 
 /**
@@ -89,7 +123,8 @@ fun ItemDetails.toItem(): Item = Item(
     quantity = quantity.toIntOrNull() ?: 0,
     supplierName = supplierName,
     supplierEmail = supplierEmail,
-    supplierPhone = supplierPhone
+    supplierPhone = supplierPhone,
+    source = source
 )
 
 fun Item.formatedPrice(): String {
@@ -114,5 +149,6 @@ fun Item.toItemDetails(): ItemDetails = ItemDetails(
     quantity = quantity.toString(),
     supplierName = supplierName,
     supplierEmail = supplierEmail,
-    supplierPhone = supplierPhone
+    supplierPhone = supplierPhone,
+    source = source
 )

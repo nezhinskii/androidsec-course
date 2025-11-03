@@ -1,4 +1,4 @@
-package com.example.inventory.data
+package com.example.inventory.data.inventory
 
 import android.content.Context
 import androidx.room.Database
@@ -7,7 +7,7 @@ import androidx.room.RoomDatabase
 import androidx.room.migration.Migration
 import androidx.sqlite.db.SupportSQLiteDatabase
 
-@Database(entities = [Item::class], version = 2, exportSchema = false)
+@Database(entities = [Item::class], version = 3, exportSchema = false)
 abstract class InventoryDatabase : RoomDatabase() {
     abstract fun itemDao(): ItemDao
 
@@ -25,6 +25,13 @@ abstract class InventoryDatabase : RoomDatabase() {
                 )
             }
         }
+
+        private val MIGRATION_2_3 = object : Migration(2, 3) {
+            override fun migrate(db: SupportSQLiteDatabase) {
+                db.execSQL("ALTER TABLE items ADD COLUMN source TEXT NOT NULL DEFAULT 'MANUAL'")
+            }
+        }
+
         @Volatile
         private var Instance: InventoryDatabase? = null
         fun getDatabase(context: Context): InventoryDatabase {
@@ -34,7 +41,7 @@ abstract class InventoryDatabase : RoomDatabase() {
                     InventoryDatabase::class.java,
                     "item_database"
                 )
-                    .addMigrations(MIGRATION_1_2)
+                    .addMigrations(MIGRATION_1_2, MIGRATION_2_3)
                     .build()
                     .also { Instance = it }
             }

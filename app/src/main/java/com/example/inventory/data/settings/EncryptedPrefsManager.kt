@@ -21,22 +21,22 @@ class EncryptedPrefsManager(context: Context) {
         private const val SQLCIPHER_PASSPHRASE_KEY = "sqlcipher_passphrase_key"
     }
 
-    fun getOrCreateSqlCipherPassphrase(): ByteArray {
+    fun getOrCreateSqlCipherPassphrase(): CharArray {
         val existing = prefs.getString(SQLCIPHER_PASSPHRASE_KEY, null)
         if (existing != null) {
-            return existing.toByteArray(Charsets.UTF_8)
+            return existing.toCharArray()
         }
 
         val keyGen = javax.crypto.KeyGenerator.getInstance("AES")
         keyGen.init(256)
         val secretKey = keyGen.generateKey()
-        val passphrase = secretKey.encoded
+        val passphrase = String(secretKey.encoded, Charsets.UTF_8)
 
         prefs.edit {
-            putString(SQLCIPHER_PASSPHRASE_KEY, String(passphrase, Charsets.UTF_8))
+            putString(SQLCIPHER_PASSPHRASE_KEY, passphrase)
         }
 
-        return passphrase
+        return passphrase.toCharArray()
     }
 
     fun putBoolean(key: String, value: Boolean) = prefs.edit {

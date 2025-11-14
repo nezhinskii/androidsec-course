@@ -21,10 +21,10 @@ class EncryptedPrefsManager(context: Context) {
         private const val SQLCIPHER_PASSPHRASE_KEY = "sqlcipher_passphrase_key"
     }
 
-    fun getOrCreateSqlCipherPassphrase(): CharArray {
+    fun getOrCreateSqlCipherPassphrase(): String {
         val existing = prefs.getString(SQLCIPHER_PASSPHRASE_KEY, null)
         if (existing != null) {
-            return existing.toCharArray()
+            return existing
         }
 
         val keyGen = javax.crypto.KeyGenerator.getInstance("AES")
@@ -36,7 +36,7 @@ class EncryptedPrefsManager(context: Context) {
             putString(SQLCIPHER_PASSPHRASE_KEY, passphrase)
         }
 
-        return passphrase.toCharArray()
+        return passphrase
     }
 
     fun putBoolean(key: String, value: Boolean) = prefs.edit {

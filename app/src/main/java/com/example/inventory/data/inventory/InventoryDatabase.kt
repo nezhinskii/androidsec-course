@@ -55,10 +55,8 @@ abstract class InventoryDatabase : RoomDatabase() {
                 try {
                     SQLCipherUtils.encrypt(context, "temp_encrypted.db", password)
                     tempFile.renameTo(originalFile)
-                    password.fill(0)
                 } catch (e: Exception) {
                     tempFile.delete()
-                    password.fill(0)
                     throw e
                 }
             }

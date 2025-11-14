@@ -6,6 +6,11 @@ import androidx.room.Room
 import androidx.room.RoomDatabase
 import androidx.room.migration.Migration
 import androidx.sqlite.db.SupportSQLiteDatabase
+import com.commonsware.cwac.saferoom.SQLCipherUtils
+import com.example.inventory.data.settings.EncryptedPrefsManager
+import net.sqlcipher.database.SQLiteDatabase
+import net.sqlcipher.database.SQLiteDatabaseHook
+import net.sqlcipher.database.SupportFactory
 
 @Database(entities = [Item::class], version = 3, exportSchema = false)
 abstract class InventoryDatabase : RoomDatabase() {
@@ -32,16 +37,56 @@ abstract class InventoryDatabase : RoomDatabase() {
             }
         }
 
+        private const val DB_NAME = "item_database"
+
         @Volatile
         private var Instance: InventoryDatabase? = null
-        fun getDatabase(context: Context): InventoryDatabase {
+
+        private fun migrateIfNeeded(context: Context, encryptedPrefs: EncryptedPrefsManager) {
+            val state = SQLCipherUtils.getDatabaseState(context, DB_NAME)
+
+            if (state == SQLCipherUtils.State.UNENCRYPTED) {
+                val originalFile = context.getDatabasePath(DB_NAME)
+                val tempFile = context.getDatabasePath("temp_encrypted.db")
+                originalFile.copyTo(tempFile, overwrite = true)
+
+                val password = encryptedPrefs.getOrCreateSqlCipherPassphrase()
+
+                try {
+                    SQLCipherUtils.encrypt(context, "temp_encrypted.db", password)
+                    tempFile.renameTo(originalFile)
+                    password.fill(0)
+                } catch (e: Exception) {
+                    tempFile.delete()
+                    password.fill(0)
+                    throw e
+                }
+            }
+        }
+
+        fun getDatabase(context: Context, encryptedPrefs: EncryptedPrefsManager): InventoryDatabase {
             return Instance ?: synchronized(this) {
+                migrateIfNeeded(context, encryptedPrefs)
+
+                val hook = object : SQLiteDatabaseHook {
+                    override fun preKey(database: SQLiteDatabase) {
+                        database.rawExecSQL("PRAGMA cipher_memory_security = OFF")
+                    }
+                    override fun postKey(database: SQLiteDatabase) {
+                    }
+                }
+
+                val password = encryptedPrefs.getOrCreateSqlCipherPassphrase()
+
+                val factory = SupportFactory(password, hook)
+
                 Room.databaseBuilder(
                     context,
                     InventoryDatabase::class.java,
-                    "item_database"
+                    DB_NAME
                 )
                     .addMigrations(MIGRATION_1_2, MIGRATION_2_3)
+                    .openHelperFactory(factory)
                     .build()
                     .also { Instance = it }
             }

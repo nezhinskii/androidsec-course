@@ -94,4 +94,9 @@ dependencies {
 
     // Icons
     implementation("androidx.compose.material:material-icons-extended:1.6.8")
+
+    // Encrypted DB
+    implementation("net.zetetic:android-database-sqlcipher:4.5.4")
+    implementation("com.commonsware.cwac:saferoom:1.2.1")
+
 }

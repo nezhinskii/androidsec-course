@@ -17,6 +17,28 @@ class EncryptedPrefsManager(context: Context) {
         EncryptedSharedPreferences.PrefValueEncryptionScheme.AES256_GCM
     )
 
+    companion object {
+        private const val SQLCIPHER_PASSPHRASE_KEY = "sqlcipher_passphrase_key"
+    }
+
+    fun getOrCreateSqlCipherPassphrase(): ByteArray {
+        val existing = prefs.getString(SQLCIPHER_PASSPHRASE_KEY, null)
+        if (existing != null) {
+            return existing.toByteArray(Charsets.UTF_8)
+        }
+
+        val keyGen = javax.crypto.KeyGenerator.getInstance("AES")
+        keyGen.init(256)
+        val secretKey = keyGen.generateKey()
+        val passphrase = secretKey.encoded
+
+        prefs.edit {
+            putString(SQLCIPHER_PASSPHRASE_KEY, String(passphrase, Charsets.UTF_8))
+        }
+
+        return passphrase
+    }
+
     fun putBoolean(key: String, value: Boolean) = prefs.edit {
         putBoolean(key, value)
     }

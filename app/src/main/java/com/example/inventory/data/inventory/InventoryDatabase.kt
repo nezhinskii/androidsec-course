@@ -53,10 +53,12 @@ abstract class InventoryDatabase : RoomDatabase() {
                 val password = encryptedPrefs.getOrCreateSqlCipherPassphrase()
 
                 try {
-                    SQLCipherUtils.encrypt(context, "temp_encrypted.db", password)
-                    tempFile.renameTo(originalFile)
-                } catch (e: Exception) {
+                    SQLCipherUtils.encrypt(context, DB_NAME, password)
                     tempFile.delete()
+                    password.fill(0)
+                } catch (e: Exception) {
+                    tempFile.renameTo(originalFile)
+                    password.fill(0)
                     throw e
                 }
             }
